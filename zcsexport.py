@@ -38,24 +38,22 @@ def SearchDirectoryRequest(comm, admin_token):
 	request.add_request(
     'SearchDirectoryRequest',
     {
-        'query': '(&(mail=*)(!(zimbraIsSystemAccount=TRUE)))', # Requête sur l'ensemble des comptes sauf les comptes système
+        'query': '(&(mail=*)(!(zimbraIsSystemAccount=TRUE)))', # Requête sur l'ensemble des comptes sauf les comptes système        
         'applyCos': 1,
-        'attrs': 'zimbraMailAlias,zimbraMailQuota,zimbraAccountStatus,zimbraCOSId,givenName'
+        'attrs': 'zimbraMailAlias,zimbraMailQuota,zimbraAccountStatus,zimbraCOSId'
     },
     'urn:zimbraAdmin'
 	)
-	
 	return comm.send_request(request)
 
 def getAttribute(arr, search_pattern):
 	#toto = "tu recherches dans arr, le dic dont n==search_pattern, puis tu retourne la valeur de _content"
 	#print (arr, search_pattern)
-	value = None
+	value = []
 	for account in arr:
 		if account['n'] == search_pattern:
-			value = account['_content']
+			value.append(account['_content'])
 			#print (value)
-			
 	return value
 
 context = ssl._create_unverified_context()
@@ -77,7 +75,7 @@ search_directory_response = SearchDirectoryRequest(comm, admin_token)
 
 soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
 
-# print(soap_response['account'])
+#print(soap_response['account'])
 
 with open('zcsexport.csv', 'w', newline='') as csvfile:
     fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
@@ -89,8 +87,8 @@ with open('zcsexport.csv', 'w', newline='') as csvfile:
     	row = {
 		'ID': account['id'],
 		'Name': account['name'],
-		'zimbraMailAlias': getAttribute(account['a'], 'zimbraMailAlias'),
-		'zimbraMailQuota': getAttribute(account['a'], 'zimbraMailQuota'),
-		'zimbraAccountStatus': getAttribute(account['a'], 'zimbraAccountStatus')
+		'zimbraMailAlias': '|'.join(getAttribute(account['a'], 'zimbraMailAlias')),
+		'zimbraMailQuota': '|'.join(getAttribute(account['a'], 'zimbraMailQuota')),
+		'zimbraAccountStatus': '|'.join(getAttribute(account['a'], 'zimbraAccountStatus'))
 		}
     	zcs_writer.writerow(row)
