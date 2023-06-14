@@ -40,7 +40,7 @@ def SearchDirectoryRequest(comm, admin_token):
     {
         'query': '(&(mail=*)(!(zimbraIsSystemAccount=TRUE)))', # Requête sur l'ensemble des comptes sauf les comptes système
         'applyCos': 1,
-        'attrs': 'zimbraMailAlias,zimbraMailQuota,zimbraAccountStatus,zimbraCOSId'
+        'attrs': 'zimbraMailAlias,zimbraMailQuota,zimbraAccountStatus,zimbraCOSId,givenName'
     },
     'urn:zimbraAdmin'
 	)
