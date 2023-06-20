@@ -12,8 +12,8 @@ def AdminTokenManagement(cache_admin_token_path, url_admin):
 	else:
 		with open(cache_admin_token_path, "r") as fichier: # Récupération du jeton administrateur dans le fichier admin_token.txt
 			admin_token = fichier.read()
-	comm = Communication(url_admin, context=context)
-	request = comm.gen_request(token=admin_token)
+	comm = Communication(url_admin, context = context)
+	request = comm.gen_request(token = admin_token)
 	request.add_request(
 	'NoOpRequest',
 	{
@@ -58,50 +58,47 @@ def getAttribute(arr, search_pattern):
 
 context = ssl._create_unverified_context() # Utilisation d'un protocole ssl pour communiquer de façon sécurisée avec le serveur web via internet
 
+# Accès aux arguments
+parser = argparse.ArgumentParser()
+parser.add_argument('-c', '--config', dest = 'configuration', type = str, default = os.path.join(os.getcwd(),'config_zcsexport.ini'), help ="Permet de saisir le chemin du fichier de configuration des credentials Zimbra")
+parser.add_argument('-o', '--output', dest = 'output', type = str, default = os.path.join(os.getcwd(),'zcsexport.csv'), help = "Permet de saisir le chemin du fichier csv d'exportation")
+parser.add_argument('--accounts', dest = 'accounts', action = 'store_true', help = "Exporter les objets de type Account")
+parser.add_argument('--dls', dest = 'dls', action = 'store_true', help = "Exporter les objets de type Ditribution List")
+parser.add_argument('--resources', dest = 'resources', action = 'store_true', help = "Exporter les objets de type Resource")
+parser.add_argument('--domains', dest = 'domains', action = 'store_true', help = "Exporter les objets de type Domain")
+parser.add_argument('--cos', dest = 'cos', action = 'store_true', help = "Exporter les objets de type Class of Services")
+parser.add_argument('--servers', dest = 'servers', action = 'store_true', help = "Exporter les objets de type Server")
+
+args = parser.parse_args()
+print (args.configuration)
+if args.configuration:
+	if not os.path.exists(args.configuration):
+		print ("Le fichier config_zcsexport.ini n'existe pas au chemin indiqué ou dans le répertoire de travail courant, le programme va se fermer.")
+		exit (0)
+	else:
+		chemin_configuration = args.configuration
+
+if args.output:
+	chemin_output = args.output
+
 config = configparser.ConfigParser()
-config.read ('config_zcsexport.ini')
+config.read (chemin_configuration)
 url_admin  = config['CREDENCIALS']['url_admin'] # url (tirée du fichier config_zcsexport.ini) du serveur zimbra
 login_admin  = config['CREDENCIALS']['login_admin'] # nom d'utilisateur (tirée du fichier config_zcsexport.ini) pour le serveur zimbra
 psswrd_admin  = config['CREDENCIALS']['psswrd_admin'] # mot de passe (tirée du fichier config_zcsexport.ini) pour le serveur zimbra
 
-comm = Communication(url_admin, context=context)
+comm = Communication(url_admin, context = context)
 
-cache_admin_token_path = "admin_token.txt"
+cache_admin_token_path = 'admin_token.txt'
 admin_token = AdminTokenManagement(cache_admin_token_path, url_admin)
 
-# Accès aux arguments
-parser = argparse.ArgumentParser()
-   
-parser.add_argument('-c', '--config', dest='configuration', action='store_true', help="Chemin du fichier de configuration des credentials Zimbra")
-parser.add_argument('-o', '--output', dest='output', action='store_true', help="Chemin du fichier csv d'exportation")
-
-parser.add_argument('--accounts', dest='accounts', action='store_true', help="Exporter les objets de type Account")
-parser.add_argument('--dls', dest='dls', action='store_true', help="Exporter les objets de type Ditribution List")
-parser.add_argument('--resources', dest='resources', action='store_true', help="Exporter les objets de type Resource")
-parser.add_argument('--domains', dest='domains', action='store_true', help="Exporter les objets de type Domain")
-parser.add_argument('--cos', dest='cos', action='store_true', help="Exporter les objets de type Class of Services")
-parser.add_argument('--servers', dest='servers', action='store_true', help="Exporter les objets de type Server")
-
-args = parser.parse_args()
-
-if args.configuration:
-	chemin_configuration = path.abspath("config_zcsexport.ini")
-	print(chemin_configuration)
-	exit (0)
-if args.output:
-	chemin_output = path.abspath("zcsexport.csv")
-	print(chemin_output)
-	exit(0)
 if args.accounts:
 	search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(mail=*)(!(zimbraIsSystemAccount=TRUE)))', 'zimbraMailAlias,zimbraMailQuota,zimbraAccountStatus')
-else:
-	print ('Veuillez entrer un argument (ou -h pour en avoir la liste)')
-	exit (0)
 
 soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
 
 # Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
-with open('zcsexport.csv', 'w', newline='') as csvfile:
+with open(chemin_output, 'w', newline = '') as csvfile:
     fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
     zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
