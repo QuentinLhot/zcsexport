@@ -50,6 +50,17 @@ def SearchDirectoryRequest(comm, admin_token, arg_query, arg_attrs, arg_types):
     )
     return comm.send_request(request)
 
+def GetAllServersRequest(comm, admin_token): 
+    request = comm.gen_request(token = admin_token)
+    request.add_request(
+    'GetAllServersRequest',
+    {
+        
+    },
+    'urn:zimbraAdmin'
+    )
+    return comm.send_request(request)
+
 # Recherche de l'attribut désiré pour les comptes e-mail et renvoie de sa valeur associée
 def getAttribute(arr, search_pattern):
     value = []
@@ -67,113 +78,99 @@ def getAccounts():
         fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
         zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         zcs_writer.writeheader()
-        for account in soap_response['account']:
+        for i in soap_response['account']:
             row = {
-            'ID': account['id'],
-            'Name': account['name'],
-            'zimbraMailAlias': '|'.join(getAttribute(account['a'], 'zimbraMailAlias')),
-            'zimbraMailQuota': '|'.join(getAttribute(account['a'], 'zimbraMailQuota')),
-            'zimbraAccountStatus': '|'.join(getAttribute(account['a'], 'zimbraAccountStatus'))
+            'ID': i['id'],
+            'Name': i['name'],
+            'zimbraMailAlias': '|'.join(getAttribute(i['a'], 'zimbraMailAlias')),
+            'zimbraMailQuota': '|'.join(getAttribute(i['a'], 'zimbraMailQuota')),
+            'zimbraAccountStatus': '|'.join(getAttribute(i['a'], 'zimbraAccountStatus'))
             }
             zcs_writer.writerow(row)
 
 def getDls():
     search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraDistributionList))', 'zimbraMailAlias', 'distributionlists')
     soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
-    print (soap_response)
-# Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
-    # with open(chemin_output, 'w', newline = '') as csvfile:
- #      fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
- #      zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
- #      zcs_writer.writeheader()
- #      for account in soap_response['account']:
- #          row = {
-    #       'ID': account['id'],
-    #       'Name': account['name'],
-    #       'zimbraMailAlias': '|'.join(getAttribute(account['a'], 'zimbraMailAlias')),
-    #       'zimbraMailQuota': '|'.join(getAttribute(account['a'], 'zimbraMailQuota')),
-    #       'zimbraAccountStatus': '|'.join(getAttribute(account['a'], 'zimbraAccountStatus'))
-    #       }
- #          zcs_writer.writerow(row)
+    with open(chemin_output, 'w', newline = '') as csvfile:
+        fieldnames = ['ID', 'Name', 'zimbraMailAlias']
+        zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+        zcs_writer.writeheader()
+        for i in soap_response['dl']:
+            row = {
+            'ID': i['id'],
+            'Name': i['name'],
+            'zimbraMailAlias': '|'.join(getAttribute(i['a'], 'zimbraMailAlias'))
+            }
+            zcs_writer.writerow(row)
 
 def getResources():
     search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraCalendarResource))', None, 'resources')
     soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
-    print (soap_response)
-# Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
-    # with open(chemin_output, 'w', newline = '') as csvfile:
- #      fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
- #      zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
- #      zcs_writer.writeheader()
- #      for account in soap_response['account']:
- #          row = {
-    #       'ID': account['id'],
-    #       'Name': account['name'],
-    #       'zimbraMailAlias': '|'.join(getAttribute(account['a'], 'zimbraMailAlias')),
-    #       'zimbraMailQuota': '|'.join(getAttribute(account['a'], 'zimbraMailQuota')),
-    #       'zimbraAccountStatus': '|'.join(getAttribute(account['a'], 'zimbraAccountStatus'))
-    #       }
- #          zcs_writer.writerow(row)
+    with open(chemin_output, 'w', newline = '') as csvfile:
+        fieldnames = ['ID', 'Name']
+        zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        zcs_writer.writeheader()
+        for i in soap_response['calresource']:
+            row = {
+            'ID': i['id'],
+            'Name': i['name']
+            # 'zimbraMailAlias': '|'.join(getAttribute(i['a'], 'zimbraMailAlias')),
+            # 'zimbraMailQuota': '|'.join(getAttribute(i['a'], 'zimbraMailQuota')),
+            # 'zimbraAccountStatus': '|'.join(getAttribute(i['a'], 'zimbraAccountStatus'))
+            }
+            zcs_writer.writerow(row)
 
 def getDomains():
     search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraDomain))', 'zimbraDomainStatus','domains')
     soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
-    print (soap_response)
-# Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
-    # with open(chemin_output, 'w', newline = '') as csvfile:
- #      fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
- #      zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
- #      zcs_writer.writeheader()
- #      for account in soap_response['account']:
- #          row = {
-    #       'ID': account['id'],
-    #       'Name': account['name'],
-    #       'zimbraMailAlias': '|'.join(getAttribute(account['a'], 'zimbraMailAlias')),
-    #       'zimbraMailQuota': '|'.join(getAttribute(account['a'], 'zimbraMailQuota')),
-    #       'zimbraAccountStatus': '|'.join(getAttribute(account['a'], 'zimbraAccountStatus'))
-    #       }
- #          zcs_writer.writerow(row)
+    with open(chemin_output, 'w', newline = '') as csvfile:
+        fieldnames = ['ID', 'Name', 'zimbraDomainStatus']
+        zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+        zcs_writer.writeheader()
+        for i in soap_response['domain']:
+            row = {
+            'ID': i['id'],
+            'Name': i['name'],
+            'zimbraDomainStatus': '|'.join(getAttribute(i['a'], 'zimbraDomainStatus'))
+            }
+            zcs_writer.writerow(row)
+
 def getCos():
     search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraCos))', None , 'coses')
     soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
-    print (soap_response)
-# Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
-    # with open(chemin_output, 'w', newline = '') as csvfile:
- #      fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
- #      zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
- #      zcs_writer.writeheader()
- #      for account in soap_response['account']:
- #          row = {
-    #       'ID': account['id'],
-    #       'Name': account['name'],
-    #       'zimbraMailAlias': '|'.join(getAttribute(account['a'], 'zimbraMailAlias')),
-    #       'zimbraMailQuota': '|'.join(getAttribute(account['a'], 'zimbraMailQuota')),
-    #       'zimbraAccountStatus': '|'.join(getAttribute(account['a'], 'zimbraAccountStatus'))
-    #       }
- #          zcs_writer.writerow(row)
+    with open(chemin_output, 'w', newline = '') as csvfile:
+        fieldnames = ['ID', 'Name']
+        zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+        zcs_writer.writeheader()
+        for i in soap_response['cos']:
+            row = {
+            'ID': i['id'],
+            'Name': i['name']
+            }
+            zcs_writer.writerow(row)
+
 def getServers():
-    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraDistributionList))', None, 'distributionlists')
-    soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
-    print (soap_response)
-# Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
-    # with open(chemin_output, 'w', newline = '') as csvfile:
- #      fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
- #      zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    get_all_servers_response = GetAllServersRequest(comm, admin_token)
+    soap_response = get_all_servers_response.get_response()['GetAllServersResponse']
 
- #      zcs_writer.writeheader()
- #      for account in soap_response['account']:
- #          row = {
-    #       'ID': account['id'],
-    #       'Name': account['name'],
-    #       'zimbraMailAlias': '|'.join(getAttribute(account['a'], 'zimbraMailAlias')),
-    #       'zimbraMailQuota': '|'.join(getAttribute(account['a'], 'zimbraMailQuota')),
-    #       'zimbraAccountStatus': '|'.join(getAttribute(account['a'], 'zimbraAccountStatus'))
-    #       }
- #          zcs_writer.writerow(row)
+    with open(chemin_output, 'w', newline = '') as csvfile:
+        fieldnames = ['ID', 'Name']
+        zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+        zcs_writer.writeheader()
+        for i in soap_response['server']:
+            row = {
+            'ID': i['id'],
+            'Name': i['name']
+            }
+            zcs_writer.writerow(row)
 
 context = ssl._create_unverified_context() # Utilisation d'un protocole ssl pour communiquer de façon sécurisée avec le serveur web via internet
 
