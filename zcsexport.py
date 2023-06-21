@@ -7,58 +7,177 @@ import ssl, csv, os, pythonzimbra.communication, pythonzimbra.tools, configparse
 
 # Gère la création du fichier texte qui stocke le jeton administrateur
 def AdminTokenManagement(cache_admin_token_path, url_admin):
-	if not os.path.exists(cache_admin_token_path): # Vérification de l'existence du fichier admin_token.txt
-		open(cache_admin_token_path, "w").close() # Création de celui-ci s'il est inexistant
-	else:
-		with open(cache_admin_token_path, "r") as fichier: # Récupération du jeton administrateur dans le fichier admin_token.txt
-			admin_token = fichier.read()
-	comm = Communication(url_admin, context = context)
-	request = comm.gen_request(token = admin_token)
-	request.add_request(
-	'NoOpRequest',
-	{
-	},
-	'urn:zimbraAdmin'
-	)
-	no_op_response = comm.send_request(request) # Vérification de la validité du jeton administrateur via une requête vide
-	if no_op_response.is_fault():
-		if no_op_response.get_fault_code() == "service.AUTH_REQUIRED" or no_op_response.get_fault_code() == "service.AUTH_EXPIRED":
-			admin_token = AuthenticationAndTokenWriter(url_admin, login_admin, psswrd_admin, context, cache_admin_token_path)
-	return admin_token
+    if not os.path.exists(cache_admin_token_path): # Vérification de l'existence du fichier admin_token.txt
+        open(cache_admin_token_path, "w").close() # Création de celui-ci s'il est inexistant
+    else:
+        with open(cache_admin_token_path, "r") as fichier: # Récupération du jeton administrateur dans le fichier admin_token.txt
+            admin_token = fichier.read()
+    comm = Communication(url_admin, context = context)
+    request = comm.gen_request(token = admin_token)
+    request.add_request(
+    'NoOpRequest',
+    {
+    },
+    'urn:zimbraAdmin'
+    )
+    no_op_response = comm.send_request(request) # Vérification de la validité du jeton administrateur via une requête vide
+    if no_op_response.is_fault():
+        if no_op_response.get_fault_code() == "service.AUTH_REQUIRED" or no_op_response.get_fault_code() == "service.AUTH_EXPIRED":
+            admin_token = AuthenticationAndTokenWriter(url_admin, login_admin, psswrd_admin, context, cache_admin_token_path)
+    return admin_token
 
 # Authentification de l'utilisateur, génération du jeton et stockage de celui-ci dans un fichier texte
 def AuthenticationAndTokenWriter(url_admin, login_admin, psswrd_admin, context, cache_admin_token_path): 
-	admin_token = auth.authenticate(url_admin, login_admin, psswrd_admin, admin_auth=True, use_password=True, context=context)
-	token_writer = open(cache_admin_token_path, "w")
-	token_writer.write(admin_token)
-	token_writer.close()
-	return admin_token
+    admin_token = auth.authenticate(url_admin, login_admin, psswrd_admin, admin_auth=True, use_password=True, context=context)
+    token_writer = open(cache_admin_token_path, "w")
+    token_writer.write(admin_token)
+    token_writer.close()
+    return admin_token
 
 # Permet de créer une requête qui sera envoyée en Langage Json au serveur Zimbra
-def SearchDirectoryRequest(comm, admin_token, arg_query, arg_attrs): 
-	request = comm.gen_request(token = admin_token)
-	request.add_request(
+def SearchDirectoryRequest(comm, admin_token, arg_query, arg_attrs, arg_types): 
+    request = comm.gen_request(token = admin_token)
+    request.add_request(
     'SearchDirectoryRequest',
     {
         'query': arg_query, # Requête sur l'ensemble des comptes sauf les comptes système        
         'applyCos': 1,
-        'attrs': arg_attrs
+        'attrs': arg_attrs,
+        'types': arg_types
+
     },
     'urn:zimbraAdmin'
-	)
-	return comm.send_request(request)
+    )
+    return comm.send_request(request)
 
 # Recherche de l'attribut désiré pour les comptes e-mail et renvoie de sa valeur associée
 def getAttribute(arr, search_pattern):
-	value = []
-	for account in arr:
-		if account['n'] == search_pattern:
-			value.append(account['_content'])
-	return value
+    value = []
+    for account in arr:
+        if account['n'] == search_pattern:
+            value.append(account['_content'])
+    return value
+
+def getAccounts():
+    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(mail=*)(!(zimbraIsSystemAccount=TRUE)))', 'zimbraMailAlias,zimbraMailQuota,zimbraAccountStatus', 'accounts')
+    soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
+
+# Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
+    with open(chemin_output, 'w', newline = '') as csvfile:
+        fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
+        zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        zcs_writer.writeheader()
+        for account in soap_response['account']:
+            row = {
+            'ID': account['id'],
+            'Name': account['name'],
+            'zimbraMailAlias': '|'.join(getAttribute(account['a'], 'zimbraMailAlias')),
+            'zimbraMailQuota': '|'.join(getAttribute(account['a'], 'zimbraMailQuota')),
+            'zimbraAccountStatus': '|'.join(getAttribute(account['a'], 'zimbraAccountStatus'))
+            }
+            zcs_writer.writerow(row)
+
+def getDls():
+    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraDistributionList))', 'zimbraMailAlias', 'distributionlists')
+    soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
+    print (soap_response)
+# Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
+    # with open(chemin_output, 'w', newline = '') as csvfile:
+ #      fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
+ #      zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+ #      zcs_writer.writeheader()
+ #      for account in soap_response['account']:
+ #          row = {
+    #       'ID': account['id'],
+    #       'Name': account['name'],
+    #       'zimbraMailAlias': '|'.join(getAttribute(account['a'], 'zimbraMailAlias')),
+    #       'zimbraMailQuota': '|'.join(getAttribute(account['a'], 'zimbraMailQuota')),
+    #       'zimbraAccountStatus': '|'.join(getAttribute(account['a'], 'zimbraAccountStatus'))
+    #       }
+ #          zcs_writer.writerow(row)
+
+def getResources():
+    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraCalendarResource))', None, 'resources')
+    soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
+    print (soap_response)
+# Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
+    # with open(chemin_output, 'w', newline = '') as csvfile:
+ #      fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
+ #      zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+ #      zcs_writer.writeheader()
+ #      for account in soap_response['account']:
+ #          row = {
+    #       'ID': account['id'],
+    #       'Name': account['name'],
+    #       'zimbraMailAlias': '|'.join(getAttribute(account['a'], 'zimbraMailAlias')),
+    #       'zimbraMailQuota': '|'.join(getAttribute(account['a'], 'zimbraMailQuota')),
+    #       'zimbraAccountStatus': '|'.join(getAttribute(account['a'], 'zimbraAccountStatus'))
+    #       }
+ #          zcs_writer.writerow(row)
+
+def getDomains():
+    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraDomain))', 'zimbraDomainStatus','domains')
+    soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
+    print (soap_response)
+# Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
+    # with open(chemin_output, 'w', newline = '') as csvfile:
+ #      fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
+ #      zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+ #      zcs_writer.writeheader()
+ #      for account in soap_response['account']:
+ #          row = {
+    #       'ID': account['id'],
+    #       'Name': account['name'],
+    #       'zimbraMailAlias': '|'.join(getAttribute(account['a'], 'zimbraMailAlias')),
+    #       'zimbraMailQuota': '|'.join(getAttribute(account['a'], 'zimbraMailQuota')),
+    #       'zimbraAccountStatus': '|'.join(getAttribute(account['a'], 'zimbraAccountStatus'))
+    #       }
+ #          zcs_writer.writerow(row)
+def getCos():
+    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraCos))', None , 'coses')
+    soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
+    print (soap_response)
+# Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
+    # with open(chemin_output, 'w', newline = '') as csvfile:
+ #      fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
+ #      zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+ #      zcs_writer.writeheader()
+ #      for account in soap_response['account']:
+ #          row = {
+    #       'ID': account['id'],
+    #       'Name': account['name'],
+    #       'zimbraMailAlias': '|'.join(getAttribute(account['a'], 'zimbraMailAlias')),
+    #       'zimbraMailQuota': '|'.join(getAttribute(account['a'], 'zimbraMailQuota')),
+    #       'zimbraAccountStatus': '|'.join(getAttribute(account['a'], 'zimbraAccountStatus'))
+    #       }
+ #          zcs_writer.writerow(row)
+def getServers():
+    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraDistributionList))', None, 'distributionlists')
+    soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
+    print (soap_response)
+# Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
+    # with open(chemin_output, 'w', newline = '') as csvfile:
+ #      fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
+ #      zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+ #      zcs_writer.writeheader()
+ #      for account in soap_response['account']:
+ #          row = {
+    #       'ID': account['id'],
+    #       'Name': account['name'],
+    #       'zimbraMailAlias': '|'.join(getAttribute(account['a'], 'zimbraMailAlias')),
+    #       'zimbraMailQuota': '|'.join(getAttribute(account['a'], 'zimbraMailQuota')),
+    #       'zimbraAccountStatus': '|'.join(getAttribute(account['a'], 'zimbraAccountStatus'))
+    #       }
+ #          zcs_writer.writerow(row)
 
 context = ssl._create_unverified_context() # Utilisation d'un protocole ssl pour communiquer de façon sécurisée avec le serveur web via internet
 
-# Accès aux arguments
+# Paramètres des arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--config', dest = 'configuration', type = str, default = os.path.join(os.getcwd(),'config_zcsexport.ini'), help ="Permet de saisir le chemin du fichier de configuration des credentials Zimbra")
 parser.add_argument('-o', '--output', dest = 'output', type = str, default = os.path.join(os.getcwd(),'zcsexport.csv'), help = "Permet de saisir le chemin du fichier csv d'exportation")
@@ -70,16 +189,15 @@ parser.add_argument('--cos', dest = 'cos', action = 'store_true', help = "Export
 parser.add_argument('--servers', dest = 'servers', action = 'store_true', help = "Exporter les objets de type Server")
 
 args = parser.parse_args()
-print (args.configuration)
 if args.configuration:
-	if not os.path.exists(args.configuration):
-		print ("Le fichier config_zcsexport.ini n'existe pas au chemin indiqué ou dans le répertoire de travail courant, le programme va se fermer.")
-		exit (0)
-	else:
-		chemin_configuration = args.configuration
+    if not os.path.exists(args.configuration):
+        print ("Le fichier config_zcsexport.ini n'existe pas au chemin indiqué ou dans le répertoire de travail courant, le programme va se fermer.")
+        exit (0)
+    else:
+        chemin_configuration = args.configuration
 
 if args.output:
-	chemin_output = args.output
+    chemin_output = args.output
 
 config = configparser.ConfigParser()
 config.read (chemin_configuration)
@@ -93,22 +211,14 @@ cache_admin_token_path = 'admin_token.txt'
 admin_token = AdminTokenManagement(cache_admin_token_path, url_admin)
 
 if args.accounts:
-	search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(mail=*)(!(zimbraIsSystemAccount=TRUE)))', 'zimbraMailAlias,zimbraMailQuota,zimbraAccountStatus')
-
-soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
-
-# Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
-with open(chemin_output, 'w', newline = '') as csvfile:
-    fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
-    zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-    zcs_writer.writeheader()
-    for account in soap_response['account']:
-    	row = {
-		'ID': account['id'],
-		'Name': account['name'],
-		'zimbraMailAlias': '|'.join(getAttribute(account['a'], 'zimbraMailAlias')),
-		'zimbraMailQuota': '|'.join(getAttribute(account['a'], 'zimbraMailQuota')),
-		'zimbraAccountStatus': '|'.join(getAttribute(account['a'], 'zimbraAccountStatus'))
-		}
-    	zcs_writer.writerow(row)
+    getAccounts()
+if args.dls:
+    getDls()
+if args.resources:
+    getResources()
+if args.domains:
+    getDomains()
+if args.cos:
+    getCos()
+if args.servers:
+    getServers()
