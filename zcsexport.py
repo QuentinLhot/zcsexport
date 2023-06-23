@@ -34,7 +34,7 @@ def AuthenticationAndTokenWriter(url_admin, login_admin, psswrd_admin, context, 
     token_writer.close()
     return admin_token
 
-# Permet de créer une requête qui sera envoyée en Langage Json au serveur Zimbra
+# Permet de créer une requête SearchDirectory qui sera envoyée en Langage Json au serveur Zimbra
 def SearchDirectoryRequest(comm, admin_token, arg_query, arg_attrs, arg_types): 
     request = comm.gen_request(token = admin_token)
     request.add_request(
@@ -50,6 +50,7 @@ def SearchDirectoryRequest(comm, admin_token, arg_query, arg_attrs, arg_types):
     )
     return comm.send_request(request)
 
+# Permet de créer une requête GetAllServer qui sera envoyée en Langage Json au serveur Zimbra
 def GetAllServersRequest(comm, admin_token): 
     request = comm.gen_request(token = admin_token)
     request.add_request(
@@ -64,111 +65,150 @@ def GetAllServersRequest(comm, admin_token):
 # Recherche de l'attribut désiré pour les comptes e-mail et renvoie de sa valeur associée
 def getAttribute(arr, search_pattern):
     value = []
-    for account in arr:
-        if account['n'] == search_pattern:
-            value.append(account['_content'])
+    for i in arr:
+        if i['n'] == search_pattern:
+            value.append(i['_content'])
     return value
 
-def getAccounts():
-    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(mail=*)(!(zimbraIsSystemAccount=TRUE)))', 'zimbraMailAlias,zimbraMailQuota,zimbraAccountStatus', 'accounts')
-    soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
+# Compte le nombre de fois où un attribut apparaît dans soap_response
+def Attribute_counter(arr, search_pattern):
+    compteur = 0
+    for i in arr:
+        if i['n'] == search_pattern:
+            compteur = compteur + 1        
+    return compteur
 
+# Retourne True si un attribut existe dans soap_response
+def Attribute_content_finder(arr, content): 
+    for i in arr:
+        if i['n'] == 'zimbraServiceEnabled':
+            if(i['_content']) == content:
+                return True
+    return False
+
+def getAccounts():
+    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(mail=*)(!(zimbraIsSystemAccount=TRUE)))', 'zimbraCreateTimestamp,zimbraMailQuota,zimbraMailHost,zimbraMailTransport,zimbraCOSId,zimbraAccountStatus,zimbraFeatureMobileSyncEnabled,zimbraFeatureMAPIConnectorEnabled,zimbraLastLogonTimestamp,zimbraPrefMailForwardingAddress,zimbraMailForwardingAddress', 'accounts')
+    soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
 # Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
     with open(chemin_output, 'w', newline = '') as csvfile:
-        fieldnames = ['ID', 'Name', 'zimbraMailAlias', 'zimbraMailQuota', 'zimbraAccountStatus']
+        fieldnames = ['Name', 'zimbraId', 'zimbraCreateTimestamp', 'zimbraMailQuota', 'zimbraMailHost', 'zimbraMailTransport', 'zimbraCOSId', 'zimbraAccountStatus', 'zimbraFeatureMobileSyncEnabled', 'zimbraFeatureMAPIConnectorEnabled', 'zimbraLastLogonTimestamp', 'Nbr_de_zimbraPrefMailForwardingAddress&zimbraMailForwardingAddress']
         zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         zcs_writer.writeheader()
         for i in soap_response['account']:
             row = {
-            'ID': i['id'],
             'Name': i['name'],
-            'zimbraMailAlias': '|'.join(getAttribute(i['a'], 'zimbraMailAlias')),
+            'zimbraId': i['id'],
+            'zimbraCreateTimestamp': '|'.join(getAttribute(i['a'], 'zimbraCreateTimestamp')),
             'zimbraMailQuota': '|'.join(getAttribute(i['a'], 'zimbraMailQuota')),
-            'zimbraAccountStatus': '|'.join(getAttribute(i['a'], 'zimbraAccountStatus'))
+            'zimbraMailHost': '|'.join(getAttribute(i['a'], 'zimbraMailHost')),
+            'zimbraMailTransport': '|'.join(getAttribute(i['a'], 'zimbraMailTransport')),
+            'zimbraCOSId': '|'.join(getAttribute(i['a'], 'zimbraCOSId')),
+            'zimbraAccountStatus': '|'.join(getAttribute(i['a'], 'zimbraAccountStatus')),
+            'zimbraFeatureMobileSyncEnabled': '|'.join(getAttribute(i['a'], 'zimbraFeatureMobileSyncEnabled')),
+            'zimbraFeatureMAPIConnectorEnabled': '|'.join(getAttribute(i['a'], 'zimbraFeatureMAPIConnectorEnabled')),
+            'zimbraLastLogonTimestamp': '|'.join(getAttribute(i['a'], 'zimbraLastLogonTimestamp')),
+            'Nbr_de_zimbraPrefMailForwardingAddress&zimbraMailForwardingAddress': Attribute_counter(i['a'], 'zimbraPrefMailForwardingAddress') + Attribute_counter(i['a'], 'zimbraMailForwardingAddress')
             }
             zcs_writer.writerow(row)
 
 def getDls():
-    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraDistributionList))', 'zimbraMailAlias', 'distributionlists')
+    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraDistributionList))', 'zimbraMailStatus,zimbraMailForwardingAddress', 'distributionlists')
     soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
 
     with open(chemin_output, 'w', newline = '') as csvfile:
-        fieldnames = ['ID', 'Name', 'zimbraMailAlias']
+        fieldnames = ['Name', 'zimbraMailStatus', 'nbr de membres(zimbraMailForwardingAddress)']
         zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
         zcs_writer.writeheader()
         for i in soap_response['dl']:
             row = {
-            'ID': i['id'],
             'Name': i['name'],
-            'zimbraMailAlias': '|'.join(getAttribute(i['a'], 'zimbraMailAlias'))
+            'zimbraMailStatus': '|'.join(getAttribute(i['a'], 'zimbraMailStatus')),
+            'nbr de membres(zimbraMailForwardingAddress)': Attribute_counter(i['a'], 'zimbraMailForwardingAddress')
             }
             zcs_writer.writerow(row)
 
 def getResources():
-    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraCalendarResource))', None, 'resources')
+    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraCalendarResource))', 'zimbraCreateTimestamp,zimbraCalResType,zimbraMailHost', 'resources')
     soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
 
     with open(chemin_output, 'w', newline = '') as csvfile:
-        fieldnames = ['ID', 'Name']
+        fieldnames = ['Name', 'zimbraId', 'zimbraCreateTimestamp', 'zimbraCalResType','zimbraMailHost']
         zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         zcs_writer.writeheader()
         for i in soap_response['calresource']:
             row = {
-            'ID': i['id'],
-            'Name': i['name']
-            # 'zimbraMailAlias': '|'.join(getAttribute(i['a'], 'zimbraMailAlias')),
-            # 'zimbraMailQuota': '|'.join(getAttribute(i['a'], 'zimbraMailQuota')),
-            # 'zimbraAccountStatus': '|'.join(getAttribute(i['a'], 'zimbraAccountStatus'))
+            'Name': i['name'],
+            'zimbraId': i['id'],
+            'zimbraCreateTimestamp': '|'.join(getAttribute(i['a'], 'zimbraCreateTimestamp')),
+            'zimbraCalResType': '|'.join(getAttribute(i['a'], 'zimbraCalResType')),
+            'zimbraMailHost': '|'.join(getAttribute(i['a'], 'zimbraMailHost'))
             }
             zcs_writer.writerow(row)
 
 def getDomains():
-    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraDomain))', 'zimbraDomainStatus','domains')
+    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraDomain))', 'zimbraCreateTimestamp,zimbraDomainStatus,zimbraDomainType,zimbraGalMode,DKIMSelector,zimbraPreAuthKey,zimbraPublicServiceHostname,zimbraPublicServiceProtocol,zimbraVirtualHostname','domains')
     soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
 
     with open(chemin_output, 'w', newline = '') as csvfile:
-        fieldnames = ['ID', 'Name', 'zimbraDomainStatus']
+        fieldnames = ['Name', 'zimbraId', 'zimbraCreateTimestamp', 'zimbraDomainStatus', 'zimbraDomainType', 'zimbraGalMode', 'DKIMSelector', 'zimbraPreAuthKey', 'zimbraPublicServiceHostname', 'zimbraPublicServiceProtocol', 'zimbraVirtualHostname']
         zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
+        #print (soap_response['domain'])
         zcs_writer.writeheader()
         for i in soap_response['domain']:
             row = {
-            'ID': i['id'],
             'Name': i['name'],
-            'zimbraDomainStatus': '|'.join(getAttribute(i['a'], 'zimbraDomainStatus'))
+            'zimbraId': i['id'],
+            'zimbraCreateTimestamp': '|'.join(getAttribute(i['a'], 'zimbraCreateTimestamp')),
+            'zimbraDomainStatus': '|'.join(getAttribute(i['a'], 'zimbraDomainStatus')),
+            'zimbraDomainType': '|'.join(getAttribute(i['a'], 'zimbraDomainType')),
+            'zimbraGalMode': '|'.join(getAttribute(i['a'], 'zimbraGalMode')),
+            'DKIMSelector': '|'.join(getAttribute(i['a'], 'DKIMSelector')),
+            'zimbraPreAuthKey': '|'.join(getAttribute(i['a'], 'zimbraPreAuthKey')),
+            'zimbraPublicServiceHostname': '|'.join(getAttribute(i['a'], 'zimbraPublicServiceHostname')),
+            'zimbraPublicServiceProtocol': '|'.join(getAttribute(i['a'], 'zimbraPublicServiceProtocol')),
+            'zimbraVirtualHostname': '|'.join(getAttribute(i['a'], 'zimbraVirtualHostname'))
             }
             zcs_writer.writerow(row)
 
 def getCos():
-    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraCos))', None , 'coses')
+    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraCos))', 'zimbraMailQuota,zimbraCreateTimestamp', 'coses')
     soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
 
     with open(chemin_output, 'w', newline = '') as csvfile:
-        fieldnames = ['ID', 'Name']
+        fieldnames = ['Name', 'zimbraId', 'zimbraMailQuota', 'zimbraCreateTimestamp']
         zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
         zcs_writer.writeheader()
         for i in soap_response['cos']:
             row = {
-            'ID': i['id'],
-            'Name': i['name']
+            'Name': i['name'],
+            'zimbraId': i['id'],
+            'zimbraMailQuota': '|'.join(getAttribute(i['a'], 'zimbraMailQuota')),
+            'zimbraCreateTimestamp': '|'.join(getAttribute(i['a'], 'zimbraCreateTimestamp'))
+
             }
             zcs_writer.writerow(row)
 
 def getServers():
     get_all_servers_response = GetAllServersRequest(comm, admin_token)
     soap_response = get_all_servers_response.get_response()['GetAllServersResponse']
-
     with open(chemin_output, 'w', newline = '') as csvfile:
-        fieldnames = ['ID', 'Name']
+        fieldnames = ['Name', 'zimbraId', 'zimbraCreateTimestamp', 'ldap', 'mta', 'proxy', 'mailbox', 'docs']
         zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
         zcs_writer.writeheader()
         for i in soap_response['server']:
             row = {
-            'ID': i['id'],
-            'Name': i['name']
+            'Name': i['name'],
+            'zimbraId': i['id'],
+            'zimbraCreateTimestamp': '|'.join(getAttribute(i['a'], 'zimbraCreateTimestamp')),
+            'ldap': Attribute_content_finder(i['a'], 'ldap'),
+            'mta': Attribute_content_finder(i['a'], 'mta'),
+            'proxy': Attribute_content_finder(i['a'], 'proxy'),
+            'mailbox': Attribute_content_finder(i['a'], 'mailbox'),
+            'docs': Attribute_content_finder(i['a'], 'docs')
+
             }
             zcs_writer.writerow(row)
 
