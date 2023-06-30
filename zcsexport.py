@@ -87,11 +87,14 @@ def Attribute_content_finder(arr, content):
     return False
 
 def getAccounts():
-    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(mail=*)(!(zimbraIsSystemAccount=TRUE)))', 'zimbraCreateTimestamp,zimbraMailQuota,zimbraMailHost,zimbraMailTransport,zimbraCOSId,zimbraAccountStatus,zimbraFeatureMobileSyncEnabled,zimbraFeatureMAPIConnectorEnabled,zimbraLastLogonTimestamp,zimbraPrefMailForwardingAddress,zimbraMailForwardingAddress', 'accounts')
+    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(mail=*)(!(zimbraIsSystemAccount=TRUE)))', 'zimbraCreateTimestamp,'\
+        'zimbraMailQuota,zimbraMailHost,zimbraMailTransport,zimbraCOSId,zimbraAccountStatus,zimbraFeatureMobileSyncEnabled,zimbraFeatureMAPIConnectorEnabled,'\
+        'zimbraLastLogonTimestamp,zimbraPrefMailForwardingAddress,zimbraMailForwardingAddress', 'accounts')
     soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
 # Céation du fichier zcsexport.csv contenant les données désirées par l'utilisateur
     with open(chemin_output, 'w', newline = '') as csvfile:
-        fieldnames = ['Name', 'zimbraId', 'zimbraCreateTimestamp', 'zimbraMailQuota', 'zimbraMailHost', 'zimbraMailTransport', 'zimbraCOSId', 'zimbraAccountStatus', 'zimbraFeatureMobileSyncEnabled', 'zimbraFeatureMAPIConnectorEnabled', 'zimbraLastLogonTimestamp', 'Nbr_de_zimbraPrefMailForwardingAddress&zimbraMailForwardingAddress']
+        fieldnames = ['Name', 'zimbraId', 'zimbraCreateTimestamp', 'zimbraMailQuota', 'zimbraMailHost', 'zimbraMailTransport', 'zimbraCOSId', 'zimbraAccountStatus','\
+        ' 'zimbraFeatureMobileSyncEnabled', 'zimbraFeatureMAPIConnectorEnabled', 'zimbraLastLogonTimestamp', 'Nbr_de_zimbraPrefMailForwardingAddress&zimbraMailForwardingAddress']
         zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         zcs_writer.writeheader()
         for i in soap_response['account']:
@@ -118,7 +121,6 @@ def getDls():
     with open(chemin_output, 'w', newline = '') as csvfile:
         fieldnames = ['Name', 'zimbraMailStatus', 'nbr de membres(zimbraMailForwardingAddress)']
         zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
         zcs_writer.writeheader()
         for i in soap_response['dl']:
             row = {
@@ -147,13 +149,14 @@ def getResources():
             zcs_writer.writerow(row)
 
 def getDomains():
-    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraDomain))', 'zimbraCreateTimestamp,zimbraDomainStatus,zimbraDomainType,zimbraGalMode,DKIMSelector,zimbraPreAuthKey,zimbraPublicServiceHostname,zimbraPublicServiceProtocol,zimbraVirtualHostname','domains')
+    search_directory_response = SearchDirectoryRequest(comm, admin_token, '(&(objectClass=zimbraDomain))', 'zimbraCreateTimestamp,zimbraDomainStatus,zimbraDomainType,zimbraGalMode,'\
+        'DKIMSelector,zimbraPreAuthKey,zimbraPublicServiceHostname,zimbraPublicServiceProtocol,zimbraVirtualHostname','domains')
     soap_response = search_directory_response.get_response()['SearchDirectoryResponse']
 
     with open(chemin_output, 'w', newline = '') as csvfile:
-        fieldnames = ['Name', 'zimbraId', 'zimbraCreateTimestamp', 'zimbraDomainStatus', 'zimbraDomainType', 'zimbraGalMode', 'DKIMSelector', 'zimbraPreAuthKey', 'zimbraPublicServiceHostname', 'zimbraPublicServiceProtocol', 'zimbraVirtualHostname']
+        fieldnames = ['Name', 'zimbraId', 'zimbraCreateTimestamp', 'zimbraDomainStatus', 'zimbraDomainType', 'zimbraGalMode', 'DKIMSelector', 'zimbraPreAuthKey','\
+        ' 'zimbraPublicServiceHostname', 'zimbraPublicServiceProtocol', 'zimbraVirtualHostname']
         zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        #print (soap_response['domain'])
         zcs_writer.writeheader()
         for i in soap_response['domain']:
             row = {
@@ -178,7 +181,6 @@ def getCos():
     with open(chemin_output, 'w', newline = '') as csvfile:
         fieldnames = ['Name', 'zimbraId', 'zimbraMailQuota', 'zimbraCreateTimestamp']
         zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
         zcs_writer.writeheader()
         for i in soap_response['cos']:
             row = {
@@ -193,10 +195,10 @@ def getCos():
 def getServers():
     get_all_servers_response = GetAllServersRequest(comm, admin_token)
     soap_response = get_all_servers_response.get_response()['GetAllServersResponse']
+
     with open(chemin_output, 'w', newline = '') as csvfile:
         fieldnames = ['Name', 'zimbraId', 'zimbraCreateTimestamp', 'ldap', 'mta', 'proxy', 'mailbox', 'docs']
         zcs_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
         zcs_writer.writeheader()
         for i in soap_response['server']:
             row = {
@@ -216,8 +218,9 @@ context = ssl._create_unverified_context() # Utilisation d'un protocole ssl pour
 
 # Paramètres des arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('-c', '--config', dest = 'configuration', type = str, default = os.path.join(os.getcwd(),'config_zcsexport.ini'), help ="Permet de saisir le chemin du fichier de configuration des credentials Zimbra")
-parser.add_argument('-o', '--output', dest = 'output', type = str, default = os.path.join(os.getcwd(),'zcsexport.csv'), help = "Permet de saisir le chemin du fichier csv d'exportation")
+parser.add_argument('-c', '--config', dest = 'configuration', type = str, default = os.path.join(os.getcwd(),'config_zcsexport.ini'), '\
+    'help ="Permet de saisir le chemin du fichier de configuration des credentials Zimbra")
+parser.add_argument('-o', '--output', dest = 'output', type = str, required = True, help = "Permet de saisir le chemin du fichier csv d'exportation")
 parser.add_argument('--accounts', dest = 'accounts', action = 'store_true', help = "Exporter les objets de type Account")
 parser.add_argument('--dls', dest = 'dls', action = 'store_true', help = "Exporter les objets de type Ditribution List")
 parser.add_argument('--resources', dest = 'resources', action = 'store_true', help = "Exporter les objets de type Resource")
